@@ -2,7 +2,6 @@ import torch
 from torch import nn, optim
 from torch.utils.data import (Dataset, DataLoader, TensorDataset)
 import tqdm
-import Training
 import os.path
 from socket import *
 import sys
@@ -13,6 +12,9 @@ import face_cropper
 import time
 from PIL import Image
 import matplotlib.pyplot as plt
+from train_helper import TrainHelper
+from model import PersonalModel
+from data_process import DataProc
 
 import torchvision.datasets
 from torchvision import transforms
@@ -21,27 +23,43 @@ from torchvision import transforms
 # 학습한 후 불러오기
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-model = Training.CNN()
 
-trans = transforms.Compose(
-        [transforms.Resize([56, 56]),
-         transforms.ToTensor(),
-         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+# 트레인 데이터셋 경로
+train_path = 'D:\\personal\\train\\'
+# 테스트 데이터셋 경로
+test_path = 'D:\\personal\\test\\'
+# 배치 사이즈
+batch_size = 50
+
+# 트레인, 테스트 데이터셋 불러오기
+data_proc = DataProc()
+data_proc.dataset_loader(train_path, test_path, batch_size)
+
+# 모델 생성
+net = PersonalModel()
+
+if os.path.exists("model.prm"):
+    # 모델 불러오기
+    net.load_state_dict(torch.load("model.prm"))
+
+    net.to(device)
+
+    # 검증모드
+    net.eval()
+else:
+    net.to(device)
+    # 훈련 실행
+    helper = TrainHelper()
+    helper.train_net(net, data_proc.train_loader, data_proc.test_loader, n_iter=50, device=device)
+    # 모델 이름 지정
+    savePath = "model.prm"
+    # CPU 로 변경
+    net.cpu()
+    # 모델 저장
+    torch.save(net.state_dict(), savePath)
 
 
-train_data = torchvision.datasets.ImageFolder(root='D:\\personal\\train\\', transform=trans)
-test_data = torchvision.datasets.ImageFolder(root='D:\\personal\\test\\', transform=trans)
-
-# 배치 크기가 50인 DataLoader 를 각각 작성
-train_loader = DataLoader(dataset=train_data, batch_size=50, shuffle=True)
-test_loader = DataLoader(dataset=test_data, batch_size=len(test_data))
-
-# 신경망의 모든 파라미터를 GPU로 전송
-model.to(device)
-
-# 훈련 실행
-model.train_net(model, train_loader, test_loader, n_iter=40, device=device)
-
+net.to(device)
 
 # 서버 연동
 port = 4799
@@ -64,10 +82,9 @@ while True:
 
     while sys.getsizeof(data)<int(fileSize):
         data += connectionSocket.recv(1024)
-    #  connectionSocket.close()
 
     #  이미지로 디코딩하는 과정
-    numpy_array = np.frombuffer(data, dtype=np.uint8)
+    numpy_array = np.frombuffer(data, dtype=np.uint16)
     image = cv2.imdecode(numpy_array, cv2.IMREAD_UNCHANGED)
     image = image[:, :, ::-1].copy()
 
@@ -89,14 +106,14 @@ while True:
         data = Image.fromarray(predict, 'RGB')
         data.save('test.png')
 
-        predict = torch.from_numpy(predict)
-        predict = np.transpose(predict, (2, 0, 1))
-        predict = predict.unsqueeze(0)
-        predict = predict.to(device, dtype=torch.float32)
-        print(model(predict))
-        _, predic_result = model(predict).max(1)
+        # predict = torch.from_numpy(predict)
+        # predict = np.transpose(predict, (2, 0, 1))
+        # predict = predict.unsqueeze(0)
+        # predict = predict.to(device, dtype=torch.float32)
+        predict = data_proc.image_process(predict)
+        print(net(predict))
+        _, predic_result = net(predict).max(1)
         print(_)
-        print(predic_result)
         predic_result = predic_result.to('cpu')
         predic_result = predic_result.numpy()
         predictedResult = predic_result[0]

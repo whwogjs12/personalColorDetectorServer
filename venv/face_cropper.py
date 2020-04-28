@@ -1,52 +1,46 @@
+import face_recognition
 import cv2
-import sys
-
 
 
 class FaceCropper(object):
 
-    def __init__(self):
-        #얼굴인식을 위한 학습된 xml 불러오기
-        self.face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-        self.src = "D:\\personal\\predict_data\\"
+    # def __init__(self):
 
+    def generate(self, image_path):
+        # 이미지 가져오기
+        img = image_path
 
-    def generate(self, image):
+        # 불러오지 못한경우
+        if img is None:
+            print("Can't open image file")
+            return 0
+
         # 얼굴 검출
-        faces = self.face_cascade.detectMultiScale(image, 1.1, 3, minSize=(56, 56))
+        face_locations = face_recognition.face_locations(img)
 
-        # 얼굴 검출이 되지 않았을 경우
-        if (faces is None):
+        # 얼굴 검출을 실패한 경우
+        if face_locations is None:
             print('Failed to detect face')
             return -1
 
-        # 얼굴 개수
-        facecnt = len(faces)
+        facecnt = len(face_locations)
         print("Detected faces: %d" % facecnt)
 
+        # 검출된 얼굴이 0개일 경우
+        if facecnt == 0:
+            print("no face")
+            return -1
+
         # 사진에서 얼굴 자르기
-        for (x, y, w, h) in faces:
-            r = max(w, h) / 2
-            centerx = x + w / 2
-            centery = y + h / 2
-            nx = int(centerx - r)
-            ny = int(centery - r)
-            nr = int(r * 2)    
+        for (top, right, bottom, left) in face_locations:
+            face_image = img[top:bottom, left:right]
 
-            faceimg = image[ny:ny+nr, nx:nx+nr]
-
-            lastimg = cv2.resize(faceimg, (56, 56))
+            lastimg = cv2.resize(face_image, (56, 56))
 
             # 얼굴이 1개일 경우
             if facecnt == 1:
                 return lastimg
-
-            # 얼굴이 1개보다 많은 경우
-            elif facecnt > 1:
-                return -2
-
-            # 얼굴아 없는 경우
+            # 얼굴아 2개 이상일 경우
             else:
-                print("zero faces")
-                return -1
-
+                print("Two or many faces")
+                return -2

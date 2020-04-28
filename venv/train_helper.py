@@ -1,70 +1,11 @@
 import torch
 from torch import nn, optim
-from torch.utils.data import (Dataset, DataLoader, TensorDataset)
+import tqdm
 import tqdm
 
 
-import torchvision.datasets
-from torchvision import transforms
-
-
-# (N, C, H, W)혀익의 Tensor를(N, C*H*W)로 늘리는 계층
-# 합성곱 출력을 MLP에 전달할 때 필요
-class FlattenLayer(nn.Module):
-
-    def forward(self, x):
-        sizes = x.size()
-        return x.view(sizes[0], -1)
-
-
-class CNN(nn.Module):
-
-    def __init__(self):
-
-        super(CNN, self).__init__()
-
-        # 5×5의 커널을 사용해서 처음에 32개, 다음에 64개의 채널 작성
-        # BatchNorm2d는 이미지용 Batch Normalization
-        # Dropout2d는 이미지용 Dropout
-        # 마지막으로 FlattenLayer 적용
-        self.conv_net = nn.Sequential(
-            nn.Conv2d(3, 32, 3),
-            nn.MaxPool2d(2),
-            nn.ReLU(),
-            nn.BatchNorm2d(32),
-            nn.Dropout2d(0.5),
-            nn.Conv2d(32, 64, 3),
-            nn.MaxPool2d(2),
-            nn.ReLU(),
-            nn.BatchNorm2d(64),
-            nn.Dropout2d(0.25),
-            nn.Conv2d(64, 128, 5),
-            nn.MaxPool2d(3),
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.Dropout2d(0.25),
-            FlattenLayer()
-        )
-
-
-        test_input = torch.ones(1, 3, 56, 56)
-        conv_output_size = self.conv_net(test_input).size()[-1]
-
-
-        self.mlp = nn.Sequential(
-            nn.Linear(conv_output_size, 100),
-            nn.ReLU(),
-            nn.BatchNorm1d(100),
-            nn.Dropout(0.25),
-            nn.Linear(100, 4)
-        )
-
-    def forward(self, x):
-        out = self.conv_net(x)
-        out = self.mlp(out)
-        return out
-
-
+class TrainHelper(object):
+    
     def eval_net(self, net, data_loader, device="cpu"):
         # Dropout 및 BatchNorm을 무효화
         net.eval()
@@ -81,6 +22,7 @@ class CNN(nn.Module):
                 _, y_pred = net(x).max(1)
             ys.append(y)
             ypreds.append(y_pred)
+
         # 미니 배치 단위의 예측 결과 등을 하나로 묶는다
         ys = torch.cat(ys)
         ypreds = torch.cat(ypreds)
