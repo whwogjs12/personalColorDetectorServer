@@ -84,7 +84,7 @@ while True:
         data += connectionSocket.recv(1024)
 
     #  이미지로 디코딩하는 과정
-    numpy_array = np.frombuffer(data, dtype=np.uint16)
+    numpy_array = np.frombuffer(data, dtype=np.uint8)
     image = cv2.imdecode(numpy_array, cv2.IMREAD_UNCHANGED)
     image = image[:, :, ::-1].copy()
 
@@ -105,11 +105,7 @@ while True:
 
         data = Image.fromarray(predict, 'RGB')
         data.save('test.png')
-
-        # predict = torch.from_numpy(predict)
-        # predict = np.transpose(predict, (2, 0, 1))
-        # predict = predict.unsqueeze(0)
-        # predict = predict.to(device, dtype=torch.float32)
+        print(str(type(predict)))
         predict = data_proc.image_process(predict)
         print(net(predict))
         _, predic_result = net(predict).max(1)
@@ -122,9 +118,8 @@ while True:
 
 
     # 데이터 넘기는 코드
-    if data:
-        result = str(predictedResult)
-        print(result.encode())
-        connectionSocket.sendall(result.encode())
+    result = str(predictedResult)
+    print(result.encode())
+    connectionSocket.sendall(result.encode())
 
     connectionSocket.close()

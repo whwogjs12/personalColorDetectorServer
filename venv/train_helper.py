@@ -46,6 +46,8 @@ class TrainHelper(object):
             net.train()
             n = 0
             n_acc = 0
+
+
             # 시간이 많이 걸리므로 tqdm을 사용해서 진행바를 표시
             for i, (xx, yy) in tqdm.tqdm(enumerate(train_loader), total=len(train_loader)):
                 xx = xx.to(device)
